@@ -77,7 +77,7 @@ fn main() {
             ..default()
         }))
         .add_plugin(MaterialPlugin::<SimpleMaterial>::default())
-        .add_plugin(WorldInspectorPlugin::new())
+        // .add_plugin(WorldInspectorPlugin::new())
         .add_plugin(JsonAssetPlugin::<Poses>::new(&["json"]))
         .add_plugin(ParquetAssetPlugin::new(&["parquet"]))
         .add_plugin(FrameTimeDiagnosticsPlugin::default())
@@ -206,11 +206,9 @@ fn render_point_cloud(
                 let mut mesh = Mesh::new(PrimitiveTopology::PointList);
                 let size = pcd_data.points.len();
                 let mut positions: Vec<[f32; 3]> = Vec::with_capacity(size);
-                let mut uvs: Vec<[f32; 2]> = Vec::with_capacity(size);
-                let mut normals: Vec<[f32; 3]> = Vec::with_capacity(size);
                 let mut colors: Vec<[f32; 4]> = Vec::with_capacity(size);
 
-                for point in &pcd_data.points[0..size] {
+                for point in &pcd_data.points {
                     let transform = node_to_transform.get(point.node_uuid.as_str()).unwrap();
                     let point_vec3 = Vec3 { x: point.x, y: point.y, z: point.z };
                     // Convert from local point to global
@@ -219,19 +217,12 @@ fn render_point_cloud(
 
                     let color = Color::rgba_u8(point.r, point.g, point.b, 255u8);
                     colors.push(color.as_rgba_f32());
-
-                    uvs.push([transformed.x, transformed.y]);
-
-                    normals.push([1.0f32, 1.0f32, 1.0f32]);
                 }
                 trace!("render_point_cloud. positions: {}", positions.len());
                 trace!("render_point_cloud. colors: {}", colors.len());
 
                 mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
                 mesh.insert_attribute(Mesh::ATTRIBUTE_COLOR, colors);
-                mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
-                mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
-
 
                 commands.spawn(MaterialMeshBundle {
                     mesh: meshes.add(mesh).into(),
