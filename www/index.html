@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+    <meta charset="utf-8" />
+    <title>PCD Renderer</title>
+</head>
+<body>
+<script type="module">
+    document.addEventListener('contextmenu', event => event.preventDefault());
+
+    import init from "./pcd-renderer.js";
+    init().then(() => {
+        console.log("Initialized PCD Renderer");
+    });
+</script>
+</body>
+</html>
