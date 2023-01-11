@@ -263,6 +263,6 @@ fn update_fps_text_sys(
         use std::{
             fmt::Write,
         };
-        write!(text, "{:.1} fps, {:.3} ms/frame", fps, frame_time * 1000.0).unwrap();
+        write!(text, "{:.1} fps, {:.3} ms/frame", fps, frame_time ).unwrap();
     }
 }
