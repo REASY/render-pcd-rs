@@ -98,11 +98,11 @@ fn setup(
         brightness: 1.0,
     });
 
-    let poses: Handle<Poses> = asset_server.load("node_pose.json");
+    let poses: Handle<Poses> = asset_server.load("node_pose_3000000.json");
     let node_pose_handle = PosesHandle(poses);
     commands.insert_resource(node_pose_handle);
 
-    let parquet = PointCloudDataHandle(asset_server.load("point_cloud.snappy.parquet"));
+    let parquet = PointCloudDataHandle(asset_server.load("point_cloud_3000000.snappy.parquet"));
     commands.insert_resource(parquet);
 
     commands
