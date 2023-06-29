@@ -1,23 +1,24 @@
-mod parquet_plugin;
+use std::cmp::Ordering;
+use std::collections::HashMap;
+use std::ops::Sub;
 
 use bevy::diagnostic::{Diagnostics, FrameTimeDiagnosticsPlugin};
 use bevy::math::DMat4;
 use bevy::prelude::*;
 use bevy::reflect::TypeUuid;
-use bevy::window::PresentMode;
+use bevy::render::mesh::PrimitiveTopology;
+use bevy::render::render_resource::AsBindGroup;
+use bevy::text::BreakLineOn;
 use bevy_common_assets::json::JsonAssetPlugin;
-use bevy_inspector_egui::WorldInspectorPlugin;
+use bevy_inspector_egui::quick::WorldInspectorPlugin;
+use smooth_bevy_cameras::controllers::orbit::{
+    OrbitCameraBundle, OrbitCameraController, OrbitCameraPlugin,
+};
+use smooth_bevy_cameras::LookTransformPlugin;
 
 use crate::parquet_plugin::{ParquetAssetPlugin, PointCloudData};
 
-use std::cmp::Ordering;
-use std::collections::HashMap;
-use std::ops::Sub;
-use bevy::render::mesh::PrimitiveTopology;
-use bevy::render::render_resource::AsBindGroup;
-
-use smooth_bevy_cameras::LookTransformPlugin;
-use smooth_bevy_cameras::controllers::orbit::{OrbitCameraBundle, OrbitCameraController, OrbitCameraPlugin};
+mod parquet_plugin;
 
 #[derive(serde::Deserialize, TypeUuid, Debug)]
 #[uuid = "413be529-bfeb-41b3-9db0-4b8b380a2c46"]
@@ -34,15 +35,14 @@ struct Poses {
     poses: Vec<NodePose>,
 }
 
-#[derive(Resource)]
+#[derive(Resource, Default)]
 struct PosesHandle(Handle<Poses>);
 
-#[derive(Resource)]
+#[derive(Resource, Default)]
 struct ImageHandle(Handle<Image>);
 
-#[derive(Resource)]
+#[derive(Resource, Default)]
 struct PointCloudDataHandle(Handle<PointCloudData>);
-
 
 #[derive(Default, AsBindGroup, TypeUuid, Debug, Clone)]
 #[uuid = "ebf24026-f0c7-4e86-8a4a-96a40101d1b5"]
@@ -62,37 +62,38 @@ fn main() {
     console_error_panic_hook::set_once();
 
     App::new()
+        .insert_resource(Msaa::Sample4)
+        .add_plugins(
+            DefaultPlugins
+                .set(WindowPlugin {
+                    primary_window: Some(Window {
+                        title: "PCD Reader".to_string(),
+                        ..default()
+                    }),
+                    ..default()
+                })
+                .add(bevy::log::LogPlugin {
+                    // Uncomment this to override the default log settings:
+                    level: bevy::log::Level::INFO,
+                    filter: "wgpu=warn,pcd_renderer=trace".to_string(),
+                    ..default()
+                }),
+        )
         .insert_resource(ClearColor(Color::WHITE))
-        .add_plugins(DefaultPlugins.set(WindowPlugin {
-            window: WindowDescriptor {
-                title: "PCD Reader".to_string(),
-                present_mode: PresentMode::AutoNoVsync,
-                ..default()
-            },
-            ..default()
-        }).add(bevy::log::LogPlugin {
-            // Uncomment this to override the default log settings:
-            level: bevy::log::Level::INFO,
-            filter: "wgpu=warn,pcd_renderer=trace".to_string(),
-            ..default()
-        }))
         .add_plugin(MaterialPlugin::<SimpleMaterial>::default())
         // .add_plugin(WorldInspectorPlugin::new())
         .add_plugin(JsonAssetPlugin::<Poses>::new(&["json"]))
         .add_plugin(ParquetAssetPlugin::new(&["parquet"]))
         .add_plugin(FrameTimeDiagnosticsPlugin::default())
-        .add_plugin(LookTransformPlugin)
         .add_plugin(OrbitCameraPlugin::default())
+        .add_plugin(LookTransformPlugin)
         .add_startup_system(setup)
         .add_system(update_fps_text_sys)
         .add_system(render_point_cloud)
         .run();
 }
 
-fn setup(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-) {
+fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.insert_resource(AmbientLight {
         color: Color::WHITE,
         brightness: 1.0,
@@ -106,17 +107,23 @@ fn setup(
     commands.insert_resource(parquet);
 
     commands
-        .spawn(OrbitCameraBundle::new(OrbitCameraController {
-            enabled: true,
-            mouse_rotate_sensitivity: Vec2::splat(0.5),
-            mouse_translate_sensitivity: Vec2::splat(10.0),
-            mouse_wheel_zoom_sensitivity: 0.2,
-            ..default()
-        }, Vec3::new(0.0, 0.0, 30.0), Vec3::ZERO))
-        .insert(Camera3dBundle::default());
+        .spawn(Camera3dBundle::default())
+        .insert(OrbitCameraBundle::new(
+            OrbitCameraController {
+                enabled: true,
+                mouse_rotate_sensitivity: Vec2::splat(0.5),
+                mouse_translate_sensitivity: Vec2::splat(10.0),
+                mouse_wheel_zoom_sensitivity: 0.2,
+                ..default()
+            },
+            Vec3::new(0.0, 0.0, 30.0),
+            Vec3::new(0., 0., 0.),
+            Vec3::Y,
+        ));
 
     let font = asset_server.load("fonts/FiraMono-Medium.ttf");
-    commands.spawn(TextBundle {
+    commands
+        .spawn(TextBundle {
             style: Style {
                 align_self: AlignSelf::FlexEnd,
                 position_type: PositionType::Absolute,
@@ -128,20 +135,21 @@ fn setup(
                 ..default()
             },
             text: Text {
-                sections: vec![
-                    TextSection {
-                        value: "AAAA".to_string(),
-                        style: TextStyle { font: font, font_size: 16.0, color: Color::BLUE },
+                sections: vec![TextSection {
+                    value: "AAAA".to_string(),
+                    style: TextStyle {
+                        font: font,
+                        font_size: 16.0,
+                        color: Color::BLUE,
                     },
-                ],
-                alignment: Default::default(),
+                }],
+                alignment: TextAlignment::Center,
+                linebreak_behaviour: BreakLineOn::WordBoundary,
             },
             ..default()
         })
         .insert(TopRightText);
 }
-
-
 
 fn render_point_cloud(
     mut commands: Commands,
@@ -157,39 +165,53 @@ fn render_point_cloud(
         if let Some(poses) = node_poses.remove(poses_handle.0.id()) {
             trace!("render_point_cloud. node_poses len: {}", poses.poses.len());
 
-            let transforms: Vec<DMat4> = poses.poses.iter().map(|v| { DMat4::from_cols_array(&v.opt_pos).transpose() })
+            let transforms: Vec<DMat4> = poses
+                .poses
+                .iter()
+                .map(|v| DMat4::from_cols_array(&v.opt_pos).transpose())
                 .collect::<Vec<_>>();
-            transforms.iter().for_each(|t| { trace!("t: {}", t) });
+            transforms.iter().for_each(|t| trace!("t: {}", t));
 
-            let min_transition = transforms.iter().min_by(|a, b| {
-                let w_axis_ord = a.w_axis.x.partial_cmp(&b.w_axis.x).unwrap();
-                return if w_axis_ord == Ordering::Equal {
-                    a.w_axis.y.partial_cmp(&b.w_axis.y).unwrap()
-                } else {
-                    w_axis_ord
-                };
-            }
-            ).unwrap();
+            let min_transition = transforms
+                .iter()
+                .min_by(|a, b| {
+                    let w_axis_ord = a.w_axis.x.partial_cmp(&b.w_axis.x).unwrap();
+                    return if w_axis_ord == Ordering::Equal {
+                        a.w_axis.y.partial_cmp(&b.w_axis.y).unwrap()
+                    } else {
+                        w_axis_ord
+                    };
+                })
+                .unwrap();
             trace!("min_transition: {}", min_transition);
 
-            let node_to_transform: HashMap<String, Transform> = poses.poses.into_iter().map(|v| {
-                // Substract min_transition from nodes translation to make it small number.
-                // Otherwise due to f32 impression we lost centimeters precision in numbers like 3620823.7240922246 (UTM coordinate)
-                let dmat = DMat4::from_cols_array(&v.opt_pos).transpose();
-                let diff_w = dmat.w_axis.sub(min_transition.w_axis);
-                trace!("render_point_cloud. diff_w: {}", diff_w);
+            let node_to_transform: HashMap<String, Transform> = poses
+                .poses
+                .into_iter()
+                .map(|v| {
+                    // Substract min_transition from nodes translation to make it small number.
+                    // Otherwise due to f32 impression we lost centimeters precision in numbers like 3620823.7240922246 (UTM coordinate)
+                    let dmat = DMat4::from_cols_array(&v.opt_pos).transpose();
+                    let diff_w = dmat.w_axis.sub(min_transition.w_axis);
+                    trace!("render_point_cloud. diff_w: {}", diff_w);
 
-                let mat = Mat4::from_cols(dmat.x_axis.as_vec4(), dmat.y_axis.as_vec4(), dmat.z_axis.as_vec4(), diff_w.as_vec4());
-                let transform = Transform::from_matrix(mat);
-                (v.node_uuid, transform)
-            })
+                    let mat = Mat4::from_cols(
+                        dmat.x_axis.as_vec4(),
+                        dmat.y_axis.as_vec4(),
+                        dmat.z_axis.as_vec4(),
+                        diff_w.as_vec4(),
+                    );
+                    let transform = Transform::from_matrix(mat);
+                    (v.node_uuid, transform)
+                })
                 .collect::<HashMap<_, _>>();
 
             node_to_transform.iter().for_each(|(_, transform)| {
-                let node_mesh = meshes.add(Mesh::from(shape::Icosphere {
-                    radius: 0.3,
+                let s = shape::Icosphere {
+                    radius: 0.5,
                     subdivisions: 5,
-                }));
+                };
+                let node_mesh = meshes.add(Mesh::try_from(s).unwrap());
                 commands.spawn(PbrBundle {
                     mesh: node_mesh,
                     material: materials.add(StandardMaterial::from(Color::BLUE)),
@@ -198,10 +220,17 @@ fn render_point_cloud(
                 });
             });
 
+            trace!(
+                "node_to_transform. node_to_transform len: {}",
+                node_to_transform.len()
+            );
             trace!("render_point_cloud. pcd_data len: {}", pcd_data.len());
 
             if let Some(pcd_data) = pcd_data.remove(pcd_handle.0.id()) {
-                trace!("render_point_cloud. pcd_data len: {}", pcd_data.points.len());
+                trace!(
+                    "render_point_cloud. pcd_data len: {}",
+                    pcd_data.points.len()
+                );
 
                 let mut mesh = Mesh::new(PrimitiveTopology::PointList);
                 let size = pcd_data.points.len();
@@ -210,7 +239,11 @@ fn render_point_cloud(
 
                 for point in &pcd_data.points {
                     let transform = node_to_transform.get(point.node_uuid.as_str()).unwrap();
-                    let point_vec3 = Vec3 { x: point.x, y: point.y, z: point.z };
+                    let point_vec3 = Vec3 {
+                        x: point.x,
+                        y: point.y,
+                        z: point.z,
+                    };
                     // Convert from local point to global
                     let transformed = transform.transform_point(point_vec3);
                     positions.push(transformed.to_array());
@@ -252,7 +285,8 @@ fn update_fps_text_sys(
         }
 
         let mut frame_time = time.delta_seconds_f64();
-        if let Some(frame_time_diagnostic) = diagnostics.get(FrameTimeDiagnosticsPlugin::FRAME_TIME) {
+        if let Some(frame_time_diagnostic) = diagnostics.get(FrameTimeDiagnosticsPlugin::FRAME_TIME)
+        {
             if let Some(frame_time_avg) = frame_time_diagnostic.average() {
                 frame_time = frame_time_avg;
             }
@@ -260,9 +294,7 @@ fn update_fps_text_sys(
 
         let text = &mut text.sections[0].value;
         text.clear();
-        use std::{
-            fmt::Write,
-        };
-        write!(text, "{:.1} fps, {:.3} ms/frame", fps, frame_time ).unwrap();
+        use std::fmt::Write;
+        write!(text, "{:.1} fps, {:.3} ms/frame", fps, frame_time).unwrap();
     }
 }
