@@ -10,8 +10,8 @@ use parquet::arrow::arrow_reader::{ParquetRecordBatchReader, ParquetRecordBatchR
 
 use arrow_array::cast::downcast_array;
 use bevy::prelude::*;
-use std::marker::PhantomData;
 use bevy::utils::Instant;
+use std::marker::PhantomData;
 
 use bytes::Bytes;
 
@@ -128,7 +128,11 @@ impl AssetLoader for ParquetAssetLoader {
                 .flatten()
                 .collect();
             let duration = start.elapsed();
-            info!("Loaded {} points in {} ms", points.len(), duration.as_millis());
+            info!(
+                "Loaded {} points in {} ms",
+                points.len(),
+                duration.as_millis()
+            );
 
             load_context.set_default_asset(LoadedAsset::new(PointCloudData { points }));
             Ok(())

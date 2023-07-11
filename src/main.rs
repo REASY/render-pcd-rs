@@ -83,12 +83,11 @@ fn main() {
                 .add(ParquetAssetPlugin::new(&["parquet"]))
                 .add(FrameTimeDiagnosticsPlugin::default())
                 .add(OrbitCameraPlugin::default())
-                .add(LookTransformPlugin)
-                // .add(WorldInspectorPlugin::new())
+                .add(LookTransformPlugin), // .add(WorldInspectorPlugin::new())
         )
         .insert_resource(ClearColor(Color::WHITE))
         .add_systems(Startup, setup)
-        .add_systems(Update,(update_fps_text_sys, render_point_cloud))
+        .add_systems(Update, (update_fps_text_sys, render_point_cloud))
         .run();
 }
 
