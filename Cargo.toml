@@ -13,15 +13,15 @@ opt-level = 3
 
 [dependencies]
 anyhow = "1"
-arrow-array = "38.0.0"
-arrow-schema = "38.0.0"
-bevy = "0.10.1"
-bevy-inspector-egui = "0.18.1"
-bevy_common_assets = { version = "0.6", features = ["json"] }
+arrow-array = "42.0.0"
+arrow-schema = "42.0.0"
+bevy = "0.11.0"
+bevy-inspector-egui = "0.18.3"
+bevy_common_assets = { version = "0.7", features = ["json"] }
 bytes = "1.4.0"
 cfg-if = "1"
 log = "0.4.17"
-parquet = { version = "38.0.0", default-features = false, features = ["arrow", "arrow-schema", "arrow-array", "snap", "flate2", "brotli"] }
+parquet = { version = "42.0.0", default-features = false, features = ["arrow", "arrow-schema", "arrow-array", "snap", "flate2", "brotli"] }
 serde = { version = "1" }
 serde_json = { version = "1", optional = true }
 smooth-bevy-cameras = "0.8.0"
