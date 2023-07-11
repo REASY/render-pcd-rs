@@ -2,15 +2,15 @@ use bevy::app::{App, Plugin};
 
 use bevy::asset::{AddAsset, AssetLoader, BoxedFuture, LoadContext, LoadedAsset};
 
-use bevy::reflect::TypeUuid;
+use bevy::reflect::{TypePath, TypeUuid};
 
-use parquet::arrow::arrow_reader::{ParquetRecordBatchReader, ParquetRecordBatchReaderBuilder};
 use arrow_array::{Float32Array, Int32Array, RecordBatch, StringArray};
 use arrow_schema::SchemaRef;
+use parquet::arrow::arrow_reader::{ParquetRecordBatchReader, ParquetRecordBatchReaderBuilder};
 
-use std::marker::PhantomData;
 use arrow_array::cast::downcast_array;
 use bevy::prelude::*;
+use std::marker::PhantomData;
 
 use bytes::Bytes;
 
@@ -26,8 +26,7 @@ pub struct Point {
     pub b: u8,
 }
 
-
-#[derive(Debug, serde::Deserialize, TypeUuid)]
+#[derive(Debug, serde::Deserialize, TypeUuid, TypePath)]
 #[uuid = "85664f76-4be3-42c6-a55d-7c5bd25e80fe"]
 pub struct PointCloudData {
     pub points: Vec<Point>,
@@ -38,19 +37,17 @@ pub struct ParquetAssetPlugin {
     _marker: PhantomData<PointCloudData>,
 }
 
-impl Plugin for ParquetAssetPlugin
-{
+impl Plugin for ParquetAssetPlugin {
     fn build(&self, app: &mut App) {
-        app.add_asset::<PointCloudData>().add_asset_loader(ParquetAssetLoader {
-            extensions: self.extensions.clone(),
-            _marker: PhantomData::<PointCloudData>,
-        });
+        app.add_asset::<PointCloudData>()
+            .add_asset_loader(ParquetAssetLoader {
+                extensions: self.extensions.clone(),
+                _marker: PhantomData::<PointCloudData>,
+            });
     }
 }
 
-
-impl ParquetAssetPlugin
-{
+impl ParquetAssetPlugin {
     /// Create a new plugin that will load assets from files with the given extensions.
     pub fn new(extensions: &[&'static str]) -> Self {
         Self {
@@ -65,23 +62,30 @@ struct ParquetAssetLoader {
     _marker: PhantomData<PointCloudData>,
 }
 
-impl AssetLoader for ParquetAssetLoader
-{
+impl AssetLoader for ParquetAssetLoader {
     fn load<'a>(
         &'a self,
         bytes: &'a [u8],
         load_context: &'a mut LoadContext,
     ) -> BoxedFuture<'a, Result<(), anyhow::Error>> {
         Box::pin(async move {
-            let rdr: ParquetRecordBatchReader = ParquetRecordBatchReaderBuilder::try_new(Bytes::from(bytes.to_vec())).unwrap().build().unwrap();
+            let rdr: ParquetRecordBatchReader =
+                ParquetRecordBatchReaderBuilder::try_new(Bytes::from(bytes.to_vec()))
+                    .unwrap()
+                    .build()
+                    .unwrap();
             let batches: Vec<RecordBatch> = rdr.collect::<Result<Vec<_>, _>>().unwrap();
             let schema = batches[0].schema();
 
             fn batch_to_points(b: &RecordBatch, schema: &SchemaRef) -> Vec<Point> {
-                let node_list: StringArray = downcast_array(b.column(schema.index_of("node_uuid").unwrap()));
-                let x_list: Float32Array = downcast_array(b.column(schema.index_of("point_x").unwrap()));
-                let y_list: Float32Array = downcast_array(b.column(schema.index_of("point_y").unwrap()));
-                let z_list: Float32Array = downcast_array(b.column(schema.index_of("point_z").unwrap()));
+                let node_list: StringArray =
+                    downcast_array(b.column(schema.index_of("node_uuid").unwrap()));
+                let x_list: Float32Array =
+                    downcast_array(b.column(schema.index_of("point_x").unwrap()));
+                let y_list: Float32Array =
+                    downcast_array(b.column(schema.index_of("point_y").unwrap()));
+                let z_list: Float32Array =
+                    downcast_array(b.column(schema.index_of("point_z").unwrap()));
                 let r_list: Int32Array = downcast_array(b.column(schema.index_of("r").unwrap()));
                 let g_list: Int32Array = downcast_array(b.column(schema.index_of("g").unwrap()));
                 let b_list: Int32Array = downcast_array(b.column(schema.index_of("b").unwrap()));
@@ -98,13 +102,27 @@ impl AssetLoader for ParquetAssetLoader
                     let g: u8 = u8::try_from(g_list.value(i)).unwrap();
                     let b: u8 = u8::try_from(b_list.value(i)).unwrap();
                     if x != 0.0f32 && y != 0.0f32 && z != 0.0f32 {
-                        points.push(Point { node_uuid: node_uuid, x: x, y: y, z: z, r: r, g: g, b: b });
+                        points.push(Point {
+                            node_uuid: node_uuid,
+                            x: x,
+                            y: y,
+                            z: z,
+                            r: r,
+                            g: g,
+                            b: b,
+                        });
                     }
                     i += 1
                 }
                 return points;
             }
-            let points: Vec<Point> = batches.iter().map(|b| { batch_to_points(b, &schema) }).collect::<Vec<_>>().into_iter().flatten().collect();
+            let points: Vec<Point> = batches
+                .iter()
+                .map(|b| batch_to_points(b, &schema))
+                .collect::<Vec<_>>()
+                .into_iter()
+                .flatten()
+                .collect();
             info!("Loaded {} points", points.len());
 
             load_context.set_default_asset(LoadedAsset::new(PointCloudData { points }));
