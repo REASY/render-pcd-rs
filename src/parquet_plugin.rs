@@ -11,6 +11,7 @@ use parquet::arrow::arrow_reader::{ParquetRecordBatchReader, ParquetRecordBatchR
 use arrow_array::cast::downcast_array;
 use bevy::prelude::*;
 use std::marker::PhantomData;
+use bevy::utils::Instant;
 
 use bytes::Bytes;
 
@@ -69,9 +70,12 @@ impl AssetLoader for ParquetAssetLoader {
         load_context: &'a mut LoadContext,
     ) -> BoxedFuture<'a, Result<(), anyhow::Error>> {
         Box::pin(async move {
+            let start = Instant::now();
+
             let rdr: ParquetRecordBatchReader =
                 ParquetRecordBatchReaderBuilder::try_new(Bytes::from(bytes.to_vec()))
                     .unwrap()
+                    .with_batch_size(10000)
                     .build()
                     .unwrap();
             let batches: Vec<RecordBatch> = rdr.collect::<Result<Vec<_>, _>>().unwrap();
@@ -123,7 +127,8 @@ impl AssetLoader for ParquetAssetLoader {
                 .into_iter()
                 .flatten()
                 .collect();
-            info!("Loaded {} points", points.len());
+            let duration = start.elapsed();
+            info!("Loaded {} points in {} ms", points.len(), duration.as_millis());
 
             load_context.set_default_asset(LoadedAsset::new(PointCloudData { points }));
             Ok(())
