@@ -2,15 +2,15 @@ use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::ops::Sub;
 
-use bevy::diagnostic::{Diagnostics, FrameTimeDiagnosticsPlugin};
+use bevy::diagnostic::{DiagnosticsStore, FrameTimeDiagnosticsPlugin};
 use bevy::math::DMat4;
 use bevy::prelude::*;
-use bevy::reflect::TypeUuid;
+use bevy::reflect::{TypePath, TypeUuid};
 use bevy::render::mesh::PrimitiveTopology;
 use bevy::render::render_resource::AsBindGroup;
 use bevy::text::BreakLineOn;
 use bevy_common_assets::json::JsonAssetPlugin;
-use bevy_inspector_egui::quick::WorldInspectorPlugin;
+// use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use smooth_bevy_cameras::controllers::orbit::{
     OrbitCameraBundle, OrbitCameraController, OrbitCameraPlugin,
 };
@@ -29,7 +29,7 @@ struct NodePose {
     opt_pos: [f64; 16],
 }
 
-#[derive(serde::Deserialize, TypeUuid, Debug)]
+#[derive(serde::Deserialize, TypeUuid, Debug, TypePath)]
 #[uuid = "bbf4de2d-d334-47da-a9a0-501f0488cd6e"]
 struct Poses {
     poses: Vec<NodePose>,
@@ -44,7 +44,7 @@ struct ImageHandle(Handle<Image>);
 #[derive(Resource, Default)]
 struct PointCloudDataHandle(Handle<PointCloudData>);
 
-#[derive(Default, AsBindGroup, TypeUuid, Debug, Clone)]
+#[derive(Default, AsBindGroup, TypeUuid, Debug, Clone, TypePath)]
 #[uuid = "ebf24026-f0c7-4e86-8a4a-96a40101d1b5"]
 pub struct SimpleMaterial {}
 
@@ -75,21 +75,20 @@ fn main() {
                 .add(bevy::log::LogPlugin {
                     // Uncomment this to override the default log settings:
                     level: bevy::log::Level::INFO,
-                    filter: "wgpu=warn,pcd_renderer=trace".to_string(),
+                    filter: "wgpu=warn,naga=warn,pcd_renderer=trace".to_string(),
                     ..default()
-                }),
+                })
+                .add(MaterialPlugin::<SimpleMaterial>::default())
+                .add(JsonAssetPlugin::<Poses>::new(&["json"]))
+                .add(ParquetAssetPlugin::new(&["parquet"]))
+                .add(FrameTimeDiagnosticsPlugin::default())
+                .add(OrbitCameraPlugin::default())
+                .add(LookTransformPlugin)
+                // .add(WorldInspectorPlugin::new())
         )
         .insert_resource(ClearColor(Color::WHITE))
-        .add_plugin(MaterialPlugin::<SimpleMaterial>::default())
-        // .add_plugin(WorldInspectorPlugin::new())
-        .add_plugin(JsonAssetPlugin::<Poses>::new(&["json"]))
-        .add_plugin(ParquetAssetPlugin::new(&["parquet"]))
-        .add_plugin(FrameTimeDiagnosticsPlugin::default())
-        .add_plugin(OrbitCameraPlugin::default())
-        .add_plugin(LookTransformPlugin)
-        .add_startup_system(setup)
-        .add_system(update_fps_text_sys)
-        .add_system(render_point_cloud)
+        .add_systems(Startup, setup)
+        .add_systems(Update,(update_fps_text_sys, render_point_cloud))
         .run();
 }
 
@@ -127,11 +126,8 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
             style: Style {
                 align_self: AlignSelf::FlexEnd,
                 position_type: PositionType::Absolute,
-                position: UiRect {
-                    top: Val::Px(5.0),
-                    right: Val::Px(5.0),
-                    ..default()
-                },
+                top: Val::Px(5.0),
+                right: Val::Px(5.0),
                 ..default()
             },
             text: Text {
@@ -144,7 +140,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                     },
                 }],
                 alignment: TextAlignment::Center,
-                linebreak_behaviour: BreakLineOn::WordBoundary,
+                linebreak_behavior: BreakLineOn::WordBoundary,
             },
             ..default()
         })
@@ -273,7 +269,7 @@ fn render_point_cloud(
 // https://github.com/qhdwight/voxel-game-rs/blob/main/src/main.rs#L320
 fn update_fps_text_sys(
     time: Res<Time>,
-    diagnostics: Res<Diagnostics>,
+    diagnostics: Res<DiagnosticsStore>,
     mut query: Query<&mut Text, With<TopRightText>>,
 ) {
     for mut text in query.iter_mut() {

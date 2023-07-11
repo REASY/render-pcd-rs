@@ -2,7 +2,7 @@ use bevy::app::{App, Plugin};
 
 use bevy::asset::{AddAsset, AssetLoader, BoxedFuture, LoadContext, LoadedAsset};
 
-use bevy::reflect::TypeUuid;
+use bevy::reflect::{TypePath, TypeUuid};
 
 use arrow_array::{Float32Array, Int32Array, RecordBatch, StringArray};
 use arrow_schema::SchemaRef;
@@ -26,7 +26,7 @@ pub struct Point {
     pub b: u8,
 }
 
-#[derive(Debug, serde::Deserialize, TypeUuid)]
+#[derive(Debug, serde::Deserialize, TypeUuid, TypePath)]
 #[uuid = "85664f76-4be3-42c6-a55d-7c5bd25e80fe"]
 pub struct PointCloudData {
     pub points: Vec<Point>,
