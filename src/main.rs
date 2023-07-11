@@ -115,7 +115,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                 mouse_wheel_zoom_sensitivity: 0.2,
                 ..default()
             },
-            Vec3::new(0.0, 0.0, 30.0),
+            Vec3::new(0.0, -95.0, 80.0),
             Vec3::new(0., 0., 0.),
             Vec3::Y,
         ));
