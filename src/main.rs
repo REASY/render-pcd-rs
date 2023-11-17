@@ -5,7 +5,7 @@ use std::ops::Sub;
 use bevy::diagnostic::{DiagnosticsStore, FrameTimeDiagnosticsPlugin};
 use bevy::math::DMat4;
 use bevy::prelude::*;
-use bevy::reflect::{TypePath, TypeUuid};
+use bevy::reflect::TypePath;
 use bevy::render::mesh::PrimitiveTopology;
 use bevy::render::render_resource::AsBindGroup;
 use bevy::text::BreakLineOn;
@@ -20,8 +20,7 @@ use crate::parquet_plugin::{ParquetAssetPlugin, PointCloudData};
 
 mod parquet_plugin;
 
-#[derive(serde::Deserialize, TypeUuid, Debug)]
-#[uuid = "413be529-bfeb-41b3-9db0-4b8b380a2c46"]
+#[derive(serde::Deserialize, Asset, TypePath, Debug)]
 struct NodePose {
     #[serde(rename = "nodeUuid")]
     node_uuid: String,
@@ -29,13 +28,12 @@ struct NodePose {
     opt_pos: [f64; 16],
 }
 
-#[derive(serde::Deserialize, TypeUuid, Debug, TypePath)]
-#[uuid = "bbf4de2d-d334-47da-a9a0-501f0488cd6e"]
+#[derive(serde::Deserialize, Asset, TypePath, Debug)]
 struct Poses {
     poses: Vec<NodePose>,
 }
 
-#[derive(Resource, Default)]
+#[derive(Resource)]
 struct PosesHandle(Handle<Poses>);
 
 #[derive(Resource, Default)]
@@ -44,8 +42,7 @@ struct ImageHandle(Handle<Image>);
 #[derive(Resource, Default)]
 struct PointCloudDataHandle(Handle<PointCloudData>);
 
-#[derive(Default, AsBindGroup, TypeUuid, Debug, Clone, TypePath)]
-#[uuid = "ebf24026-f0c7-4e86-8a4a-96a40101d1b5"]
+#[derive(serde::Deserialize, Asset, TypePath, Clone, AsBindGroup, Debug)]
 pub struct SimpleMaterial {}
 
 impl Material for SimpleMaterial {

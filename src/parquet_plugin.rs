@@ -1,22 +1,23 @@
 use bevy::app::{App, Plugin};
 
-use bevy::asset::{AddAsset, AssetLoader, BoxedFuture, LoadContext, LoadedAsset};
+use bevy::asset::{AssetLoader, AsyncReadExt, BoxedFuture, LoadContext};
 
-use bevy::reflect::{TypePath, TypeUuid};
+use bevy::reflect::TypePath;
 
 use arrow_array::{Float32Array, Int32Array, RecordBatch, StringArray};
 use arrow_schema::SchemaRef;
 use parquet::arrow::arrow_reader::{ParquetRecordBatchReader, ParquetRecordBatchReaderBuilder};
 
 use arrow_array::cast::downcast_array;
+use bevy::asset::io::Reader;
 use bevy::prelude::*;
 use bevy::utils::Instant;
 use std::marker::PhantomData;
 
 use bytes::Bytes;
+use thiserror::Error;
 
-#[derive(Debug, serde::Deserialize, TypeUuid)]
-#[uuid = "1f976150-22f2-4f54-bae2-0940473ba16b"]
+#[derive(serde::Deserialize, Asset, TypePath, Debug)]
 pub struct Point {
     pub node_uuid: String,
     pub x: f32,
@@ -27,8 +28,7 @@ pub struct Point {
     pub b: u8,
 }
 
-#[derive(Debug, serde::Deserialize, TypeUuid, TypePath)]
-#[uuid = "85664f76-4be3-42c6-a55d-7c5bd25e80fe"]
+#[derive(serde::Deserialize, Asset, TypePath, Debug)]
 pub struct PointCloudData {
     pub points: Vec<Point>,
 }
@@ -40,8 +40,8 @@ pub struct ParquetAssetPlugin {
 
 impl Plugin for ParquetAssetPlugin {
     fn build(&self, app: &mut App) {
-        app.add_asset::<PointCloudData>()
-            .add_asset_loader(ParquetAssetLoader {
+        app.init_asset::<PointCloudData>()
+            .register_asset_loader(ParquetAssetLoader {
                 extensions: self.extensions.clone(),
                 _marker: PhantomData::<PointCloudData>,
             });
@@ -63,14 +63,29 @@ struct ParquetAssetLoader {
     _marker: PhantomData<PointCloudData>,
 }
 
+#[derive(Debug, Error)]
+pub enum ParquetLoaderError {
+    /// An [IO Error](std::io::Error)
+    #[error("Could not read the file: {0}")]
+    Io(#[from] std::io::Error),
+}
+
 impl AssetLoader for ParquetAssetLoader {
+    type Asset = PointCloudData;
+    type Settings = ();
+    type Error = ParquetLoaderError;
+
     fn load<'a>(
         &'a self,
-        bytes: &'a [u8],
-        load_context: &'a mut LoadContext,
-    ) -> BoxedFuture<'a, Result<(), anyhow::Error>> {
+        reader: &'a mut Reader,
+        _settings: &'a Self::Settings,
+        _load_context: &'a mut LoadContext,
+    ) -> BoxedFuture<'a, Result<Self::Asset, Self::Error>> {
         Box::pin(async move {
             let start = Instant::now();
+
+            let mut bytes = Vec::new();
+            reader.read_to_end(&mut bytes).await?;
 
             let rdr: ParquetRecordBatchReader =
                 ParquetRecordBatchReaderBuilder::try_new(Bytes::from(bytes.to_vec()))
@@ -133,11 +148,16 @@ impl AssetLoader for ParquetAssetLoader {
                 points.len(),
                 duration.as_millis()
             );
-
-            load_context.set_default_asset(LoadedAsset::new(PointCloudData { points }));
-            Ok(())
+            Ok(PointCloudData { points })
         })
     }
+    // fn load<'a>(
+    //     &'a self,
+    //     reader: &'a mut Reader,
+    //     load_context: &'a mut LoadContext,
+    // ) -> BoxedFuture<'a, Result<(), anyhow::Error>> {
+
+    // }
 
     fn extensions(&self) -> &[&str] {
         &self.extensions
