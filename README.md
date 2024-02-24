@@ -6,6 +6,7 @@ An app based on [Bevy Engine](https://bevyengine.org/) to render point cloud bot
 The project requires the following tools configured on your developer machine:
 - Git LFS
 - Rust compiler and Cargo, check https://www.rust-lang.org/tools/install on how to install both
+- wasm-bidgen-cli installed `cargo install -f wasm-bindgen-cli --version 0.2.91`
 
 ## How to compile and run native version
 ```bash

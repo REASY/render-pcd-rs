@@ -1,6 +1,6 @@
 [package]
 name = "pcd-renderer"
-version = "0.1.4"
+version = "0.1.5"
 edition = "2021"
 
 [profile.dev]
@@ -18,8 +18,8 @@ opt-level = 3
 anyhow = "1"
 arrow-array = "50"
 arrow-schema = "50"
-bevy = "0.12"
-bevy_common_assets = { version = "0.9", features = ["json"] }
+bevy = "0.13"
+bevy_common_assets = { version = "0.10", features = ["json"] }
 # Uncomment once bevy-inspector-egui moves to bevy 0.11.0, https://github.com/jakobhellermann/bevy-inspector-egui/pull/141
 #bevy-inspector-egui = "0.18.3"
 bytes = "1.5"
@@ -28,7 +28,7 @@ log = "0.4"
 parquet = { version = "50", default-features = false, features = ["arrow", "arrow-schema", "arrow-array", "snap", "flate2", "brotli"] }
 serde = { version = "1" }
 serde_json = { version = "1", optional = true }
-smooth-bevy-cameras = { version = "0.10" }
+smooth-bevy-cameras = { version = "0.11" }
 thiserror = "1.0"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]

@@ -7,6 +7,7 @@ use bevy::math::DMat4;
 use bevy::prelude::*;
 use bevy::reflect::TypePath;
 use bevy::render::mesh::PrimitiveTopology;
+use bevy::render::render_asset::RenderAssetUsages;
 use bevy::render::render_resource::AsBindGroup;
 use bevy::text::BreakLineOn;
 use bevy_common_assets::json::JsonAssetPlugin;
@@ -135,7 +136,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                         color: Color::BLUE,
                     },
                 }],
-                alignment: TextAlignment::Center,
+                justify: Default::default(),
                 linebreak_behavior: BreakLineOn::WordBoundary,
             },
             ..default()
@@ -199,11 +200,8 @@ fn render_point_cloud(
                 .collect::<HashMap<_, _>>();
 
             node_to_transform.iter().for_each(|(_, transform)| {
-                let s = shape::Icosphere {
-                    radius: 0.5,
-                    subdivisions: 5,
-                };
-                let node_mesh = meshes.add(Mesh::try_from(s).unwrap());
+                let s = Sphere::new(0.5);
+                let node_mesh = meshes.add(s);
                 commands.spawn(PbrBundle {
                     mesh: node_mesh,
                     material: materials.add(StandardMaterial::from(Color::BLUE)),
@@ -224,7 +222,8 @@ fn render_point_cloud(
                     pcd_data.points.len()
                 );
 
-                let mut mesh = Mesh::new(PrimitiveTopology::PointList);
+                let mut mesh =
+                    Mesh::new(PrimitiveTopology::PointList, RenderAssetUsages::default());
                 let size = pcd_data.points.len();
                 let mut positions: Vec<[f32; 3]> = Vec::with_capacity(size);
                 let mut colors: Vec<[f32; 4]> = Vec::with_capacity(size);
@@ -270,14 +269,15 @@ fn update_fps_text_sys(
 ) {
     for mut text in query.iter_mut() {
         let mut fps = 0.0;
-        if let Some(fps_diagnostic) = diagnostics.get(FrameTimeDiagnosticsPlugin::FPS) {
+        if let Some(fps_diagnostic) = diagnostics.get(&FrameTimeDiagnosticsPlugin::FPS) {
             if let Some(fps_avg) = fps_diagnostic.average() {
                 fps = fps_avg;
             }
         }
 
         let mut frame_time = time.delta_seconds_f64();
-        if let Some(frame_time_diagnostic) = diagnostics.get(FrameTimeDiagnosticsPlugin::FRAME_TIME)
+        if let Some(frame_time_diagnostic) =
+            diagnostics.get(&FrameTimeDiagnosticsPlugin::FRAME_TIME)
         {
             if let Some(frame_time_avg) = frame_time_diagnostic.average() {
                 frame_time = frame_time_avg;
