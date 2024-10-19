@@ -1,7 +1,4 @@
-use std::cmp::Ordering;
-use std::collections::HashMap;
-use std::ops::Sub;
-
+use bevy::color::palettes::basic::BLUE;
 use bevy::diagnostic::{DiagnosticsStore, FrameTimeDiagnosticsPlugin};
 use bevy::math::DMat4;
 use bevy::prelude::*;
@@ -11,6 +8,9 @@ use bevy::render::render_asset::RenderAssetUsages;
 use bevy::render::render_resource::AsBindGroup;
 use bevy::text::BreakLineOn;
 use bevy_common_assets::json::JsonAssetPlugin;
+use std::cmp::Ordering;
+use std::collections::HashMap;
+use std::ops::Sub;
 // use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use smooth_bevy_cameras::controllers::orbit::{
     OrbitCameraBundle, OrbitCameraController, OrbitCameraPlugin,
@@ -36,9 +36,6 @@ struct Poses {
 
 #[derive(Resource)]
 struct PosesHandle(Handle<Poses>);
-
-#[derive(Resource, Default)]
-struct ImageHandle(Handle<Image>);
 
 #[derive(Resource, Default)]
 struct PointCloudDataHandle(Handle<PointCloudData>);
@@ -133,7 +130,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                     style: TextStyle {
                         font: font,
                         font_size: 16.0,
-                        color: Color::BLUE,
+                        color: Color::BLACK,
                     },
                 }],
                 justify: Default::default(),
@@ -204,7 +201,10 @@ fn render_point_cloud(
                 let node_mesh = meshes.add(s);
                 commands.spawn(PbrBundle {
                     mesh: node_mesh,
-                    material: materials.add(StandardMaterial::from(Color::BLUE)),
+                    material: materials.add(StandardMaterial {
+                        base_color: BLUE.into(),
+                        ..default()
+                    }),
                     transform: transform.clone(),
                     ..default()
                 });
@@ -239,8 +239,8 @@ fn render_point_cloud(
                     let transformed = transform.transform_point(point_vec3);
                     positions.push(transformed.to_array());
 
-                    let color = Color::rgba_u8(point.r, point.g, point.b, 255u8);
-                    colors.push(color.as_rgba_f32());
+                    let color = Color::srgba_u8(point.r, point.g, point.b, 255u8);
+                    colors.push(color.to_srgba().to_f32_array());
                 }
                 trace!("render_point_cloud. positions: {}", positions.len());
                 trace!("render_point_cloud. colors: {}", colors.len());

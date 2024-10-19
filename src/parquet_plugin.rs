@@ -1,6 +1,7 @@
 use bevy::app::{App, Plugin};
+use std::future::Future;
 
-use bevy::asset::{AssetLoader, AsyncReadExt, BoxedFuture, LoadContext};
+use bevy::asset::{AssetLoader, AsyncReadExt, LoadContext};
 
 use bevy::reflect::TypePath;
 
@@ -11,7 +12,7 @@ use parquet::arrow::arrow_reader::{ParquetRecordBatchReader, ParquetRecordBatchR
 use arrow_array::cast::downcast_array;
 use bevy::asset::io::Reader;
 use bevy::prelude::*;
-use bevy::utils::Instant;
+use bevy::utils::{ConditionalSendFuture, Instant};
 use std::marker::PhantomData;
 
 use bytes::Bytes;
@@ -80,7 +81,9 @@ impl AssetLoader for ParquetAssetLoader {
         reader: &'a mut Reader,
         _settings: &'a Self::Settings,
         _load_context: &'a mut LoadContext,
-    ) -> BoxedFuture<'a, Result<Self::Asset, Self::Error>> {
+    ) -> impl ConditionalSendFuture
+           + Future<Output = Result<<Self as AssetLoader>::Asset, <Self as AssetLoader>::Error>>
+    {
         Box::pin(async move {
             let start = Instant::now();
 
